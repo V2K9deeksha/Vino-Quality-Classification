@@ -1,0 +1,225 @@
+%%writefile app.py
+import streamlit as st
+import pandas as pd
+import matplotlib.pyplot as plt
+import numpy as np
+import seaborn as sns
+from scipy import stats
+from sklearn.model_selection import GridSearchCV
+from sklearn.discriminant_analysis import LinearDiscriminantAnalysis
+from sklearn.metrics import accuracy_score
+from sklearn.preprocessing import StandardScaler
+from mpl_toolkits.mplot3d import Axes3D
+
+st.set_page_config(page_title='ML Final Lab', layout="wide")
+
+st.title("Wine Quality Classification App")
+
+#sidebar
+st.sidebar.image("https://cdn.shopify.com/s/files/1/1568/8443/products/y90_es_nhy_layout_1_square_red-and-white-wine-splash-wall-art.webp?v=1669116884")
+st.sidebar.write('Developed by ')
+st.sidebar.write('V K Deeksha - 21PD37')
+st.sidebar.write('M Aiswarya - 21PD20')
+
+# Create tabs
+tab1, tab2, tab3, tab4 = st.tabs(["Overview", "🗃 Data","📈 Visualize","LDA"])
+
+with tab1:
+   st.header("Overview")
+   st.markdown("This project explains the work of Linear Discriminant Analysis (LDA) using the help of White-wine quality dataset.")
+   # Introduction to LDA
+   st.subheader("Linear Discriminant Analysis(LDA):")
+   st.markdown("Linear Discriminant Analysis (LDA) is one of the commonly used dimensionality reduction techniques in machine learning to solve more than two-class classification problems. It is also known as Normal Discriminant Analysis (NDA) or Discriminant Function Analysis (DFA).It aims to find a linear combination of features that best separates different classes while preserving class-specific information.")
+   # Provide a link to learn more about LDA
+   st.markdown("[Learn more about LDA](https://scikit-learn.org/stable/modules/generated/sklearn.discriminant_analysis.LinearDiscriminantAnalysis.html#sklearn.discriminant_analysis.LinearDiscriminantAnalysis)")
+   # Introduction to federatal learning
+   st.subheader("Federatal learning:")
+   long_txt = """Federated learning is a way to train AI models without anyone seeing or touching your data, offering a way to unlock information to feed new AI applications.
+                  Under federated learning, multiple people remotely share their data to collaboratively train a single deep learning model, improving on it iteratively, like a team presentation or report.
+                  Each party downloads the model from a datacenter in the cloud, usually a pre-trained foundation model. 
+                  They train it on their private data, then summarize and encrypt the models new configuration. 
+                  The model updates are sent back to the servers, decrypted, averaged, and integrated into the centralized model. 
+                  Iteration after iteration, the collaborative training continues until the model is fully trained."""
+   st.markdown(long_txt)
+   # Provide a link to learn more about FL
+   st.markdown("[Learn more about Federatal learning](https://research.ibm.com/blog/what-is-federated-learning)")
+
+with tab2:
+   st.header("White-wine Quality classification Dataset")
+   st.markdown("The White-wine dataset has seven classes(Quality): 3,4,5,6,7,8,9.")
+   long_txt = """
+                1. Title: Wine Quality.
+
+                2. Sources Created by: Paulo Cortez (Univ. Minho), Antonio Cerdeira, Fernando Almeida, Telmo Matos and Jose Reis (CVRVV) @ 2009.
+                
+                3. Number of Instances: white wine - 4898. 
+                
+                4. Number of Attributes: 11 + output attribute.
+                
+                5. Attribute information:
+
+                      Input variables (based on physicochemical tests):
+
+                        1 - fixed acidity
+
+                        2 - volatile acidity
+
+                        3 - citric acid
+
+                        4 - residual sugar
+
+                        5 - chlorides
+                          
+                        6 - free sulfur dioxide
+                          
+                        7 - total sulfur dioxide
+                         
+                        8 - density
+                          
+                        9 - pH
+                          
+                        10 - sulphates
+                          
+                        11 - alcohol
+                          
+                        Output variable (based on sensory data): 
+                        12 - quality (score between 0 and 10)
+                
+                6. Missing Attribute Values: None."""
+   st.markdown(long_txt)
+   st.subheader("Data:")
+   st.markdown("[Download dataset here.](https://archive.ics.uci.edu/dataset/186/wine+quality)")
+   # Load the white wine dataset
+   data = pd.read_csv('/content/winequality-white.csv', sep=';')
+   st.write(data)  
+
+with tab3:
+   st.header("Visualization")
+
+   # Create a count plot using Seaborn
+   st.subheader("Count Plot of Wine Quality:")
+   # Add a description of the count plot
+   st.write("The count plot shows the distribution of wine quality in the white wine dataset.")
+   plt.figure(figsize=(8, 6))
+   sns.set_style("whitegrid")
+   sns.countplot(data=data, x='quality', palette='viridis')
+   plt.xlabel("Quality")
+   plt.ylabel("Count")
+   st.pyplot(plt)
+
+   # Create a correlation matrix
+   correlation_matrix = data.corr()
+   # Create a correlation heatmap using Seaborn
+   st.subheader("Correlation Heatmap:")
+   # Add a description of the correlation heatmap
+   st.write("The correlation heatmap shows the relationships between different features in the white wine dataset.")
+   plt.figure(figsize=(10, 8))
+   sns.set_style("whitegrid")
+   sns.heatmap(correlation_matrix, annot=True, cmap='coolwarm')
+   st.pyplot(plt)
+
+   #Scatter Plot: Select two features for the scatter plot
+   st.subheader("Scatter Plot:")   
+   feature1 = st.selectbox('Select the first feature:', data.columns)
+   feature2 = st.selectbox('Select the second feature:', data.columns)
+   # Add a description of the scatter plot
+   st.write(f"The scatter plot shows the relationship between {feature1} and {feature2} in the white wine dataset.")
+   plt.figure(figsize=(8, 6))
+   sns.set_style("whitegrid")
+   sns.scatterplot(x=feature1, y=feature2,hue='quality', data=data )
+   plt.xlabel(feature1)
+   plt.ylabel(feature2)
+   st.pyplot(plt)
+
+   # Display histograms with KDE for all features
+   st.subheader("Histograms:")
+   st.write("This Streamlit app displays histograms with kernel density estimation (KDE) for selected feature in the white wine dataset.")
+   # Select a feature using a selectbox
+   selected_feature = st.selectbox("Select a feature:", data.columns)
+   plt.figure(figsize=(8, 6))
+   sns.set_style("whitegrid")
+   sns.histplot(data=data, x=selected_feature, kde=True, color='blue', bins=30)
+   plt.xlabel(selected_feature)
+   plt.ylabel("Frequency")
+   st.pyplot(plt)
+
+   def box_plot(data): 
+    # Set the number of columns in the box plot grid
+    num_columns = 2
+    num_features = len(data.columns) - 1  # Exclude 'quality' column
+    num_rows = (num_features - 1) // num_columns + 1
+    fig, axes = plt.subplots(num_rows, num_columns, figsize=(15, 4*num_rows))
+    for i, feature in enumerate(data.columns):
+        if feature != 'quality':
+            row = i // num_columns
+            col = i % num_columns
+            ax = axes[row, col]
+            sns.set_style("whitegrid")
+            sns.boxplot(data=data, x=feature, ax=ax, color='blue')
+            ax.set_xlabel("")  # Clear the x-axis label
+            ax.set_title(feature, fontsize=10)
+    # Remove any remaining empty subplots
+    for i in range(num_features, num_rows * num_columns):
+        fig.delaxes(axes.flatten()[i])
+    st.pyplot(fig)
+
+   # Display box plots for all features
+   st.subheader("Box Plots:")
+   st.write("This Streamlit app displays box plots for all features in the white wine dataset before the outliers removal.")
+   box_plot(data)
+   st.write("This Streamlit app displays box plots for all features in the white wine dataset after the outliers removal using z-score moethod.")
+   #Outlier removal
+   z_scores = np.abs(stats.zscore(data))
+   threshold = 3
+   outlier_indices = np.where(z_scores > threshold)
+   # Remove outliers
+   # new DataFrame with outliers removed
+   df = data[(z_scores < threshold).all(axis=1)]
+   box_plot(df)
+      
+with tab4:
+   # Set the title and description of the Streamlit app
+   st.header("LDA Dimensionality Reduction on White Wine Dataset")
+   st.write("This Streamlit app performs Linear Discriminant Analysis (LDA) for dimensionality reduction on the white wine dataset.")
+   
+   # Separate features and target
+   X = data.drop("quality", axis=1)
+   y = data["quality"]
+   
+   # Standardize the features (important for LDA)
+   scaler = StandardScaler()
+   X_scaled = scaler.fit_transform(X)
+   
+   # Apply LDA for dimensionality reduction
+   lda = LinearDiscriminantAnalysis(n_components=2)
+   X_lda = lda.fit_transform(X_scaled, y)
+   
+   # Create a DataFrame with the reduced data
+   reduced_data = pd.DataFrame(data=X_lda, columns=["LDA Component 1", "LDA Component 2"])
+   reduced_data["Quality"] = y  # Add quality labels to the reduced data
+   
+   # Create a scatter plot of the reduced data
+   st.subheader("LDA Reduced Data Scatter Plot")
+   plt.figure(figsize=(8, 6))
+   sns.set_style("whitegrid")
+   sns.scatterplot(data=reduced_data, x="LDA Component 1", y="LDA Component 2", hue="Quality", palette='viridis')
+   plt.xlabel("LDA Component 1")
+   plt.ylabel("LDA Component 2")
+   plt.title("LDA Reduced Data Scatter Plot")
+   st.pyplot(plt)
+
+   # Apply LDA for dimensionality reduction to 3D
+   lda = LinearDiscriminantAnalysis(n_components=3)
+   X_lda = lda.fit_transform(X_scaled, y)
+
+   # Create a 3D scatter plot of the reduced data
+   st.subheader("LDA Reduced Data 3D Scatter Plot")
+   fig = plt.figure(figsize=(8, 6))
+   ax = fig.add_subplot(111, projection='3d')
+   ax.scatter(X_lda[:, 0], X_lda[:, 1], X_lda[:, 2], c=y, cmap='viridis', label='Quality')
+   ax.set_xlabel("LDA Component 1")
+   ax.set_ylabel("LDA Component 2")
+   ax.set_zlabel("LDA Component 3")
+   ax.set_title("LDA Reduced Data 3D Scatter Plot")
+   st.pyplot(fig)
+
